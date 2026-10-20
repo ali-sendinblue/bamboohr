@@ -1,13 +1,13 @@
 <?php
 $tools = [
     [
-        'href' => 'bamboo-leaves.html',
+        'href' => 'leaves',
         'title' => 'BambooHR team leaves',
         'text' => 'Pick a month and a manager, see everyone’s leave, export it as CSV.',
         'tag' => 'HR',
     ],
     [
-        'href' => 'bamboo-oncall.html',
+        'href' => 'oncall',
         'title' => 'On-call payroll',
         'text' => 'On-call days and intervention hours per person, split into weekdays and weekends/holidays.',
         'tag' => 'Payroll',
@@ -36,6 +36,8 @@ $tools = [
   .tag { display:inline-block; font-size:12px; font-weight:600; color:var(--brand); background:color-mix(in srgb,var(--brand) 12%,transparent); padding:2px 10px; border-radius:999px; margin-bottom:10px }
   .card h2 { font-size:18px; margin:0 0 6px }
   .card p { margin:0; color:var(--muted); font-size:14px }
+  p.source { color:var(--muted); font-size:14px; margin:32px 0 0 }
+  p.source a { color:var(--brand) }
 </style>
 </head>
 <body>
@@ -51,6 +53,7 @@ $tools = [
       </a>
     <?php endforeach; ?>
   </div>
+  <p class="source">The source of this project can be accessed at <a href="https://github.com/ali-sendinblue/bamboohr">github.com/ali-sendinblue/bamboohr</a>.</p>
 </main>
 </body>
 </html>

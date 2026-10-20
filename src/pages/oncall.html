@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>On-call Payroll</title>
-<link rel="stylesheet" href="bamboo.css">
+<link rel="stylesheet" href="asset/bamboo.css">
 <style>
   th small { display:block; text-transform:none; letter-spacing:0; font-weight:400 }
   th.num, td.num { text-align:right }
@@ -35,7 +35,7 @@
 <body>
 <main>
   <header>
-    <a class="back" href="index.php" title="All tools">←</a>
+    <a class="back" href="./" title="All tools">←</a>
     <div>
       <h1>On-call Payroll</h1>
       <p>On-call days and intervention hours per person, split into weekdays and weekends/holidays.</p>
@@ -122,7 +122,7 @@
   </section>
 </main>
 
-<script src="bamboo-common.js"></script>
+<script src="asset/bamboo-common.js"></script>
 <script>
 // BambooHR time off types, compared ignoring case, spaces and dashes ("OnCall Period" = "On-call period")
 const TYPES = { oncallperiod: 'period', oncallintervention: 'intervention' };
@@ -140,7 +140,7 @@ let sortKey = 'name', sortDir = 1;
 
 async function loadHolidays() {
   if (offices) return offices;
-  const res = await fetch('holidays.json', { cache: 'no-cache' });
+  const res = await fetch('holidays', { cache: 'no-cache' });
   if (!res.ok) throw new Error('Could not load holidays.json');
   return offices = (await res.json()).offices || {};
 }

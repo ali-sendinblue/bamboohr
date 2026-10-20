@@ -2,7 +2,7 @@
 // Same-origin proxy for the BambooHR API (BambooHR sends no CORS headers).
 // The API key travels in the X-Bamboo-Key header, is used once and never stored or logged.
 //
-// GET bamboo-proxy.php?d=<companyDomain>&p=<endpoint>&<query params forwarded as-is>
+// GET /proxy?d=<companyDomain>&p=<endpoint>&<query params forwarded as-is>
 
 const ALLOWED_PATHS = [
     'employees/directory',
