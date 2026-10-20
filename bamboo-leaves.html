@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BambooHR Team Leaves</title>
+<link rel="stylesheet" href="bamboo.css">
+</head>
+<body>
+<main>
+  <header>
+    <a class="back" href="index.php" title="All tools">←</a>
+    <div>
+      <h1>BambooHR Team Leaves</h1>
+      <p>See who is off in a given month, and export it as CSV.</p>
+    </div>
+  </header>
+
+  <section class="card">
+    <h2>1 · Connect</h2>
+    <div class="row">
+      <div>
+        <label for="domain">Company domain <small>(<b>x</b>.bamboohr.com)</small></label>
+        <input id="domain" placeholder="brevo" autocomplete="off" spellcheck="false">
+      </div>
+      <div style="flex:2">
+        <label for="key">API key</label>
+        <input id="key" type="password" placeholder="Your personal BambooHR API key" autocomplete="off" spellcheck="false">
+      </div>
+      <button class="primary" id="connect">Connect</button>
+    </div>
+    <p class="hint">Your key is only held in this tab’s memory and sent through this site’s proxy to BambooHR. You see the same employees and fields as your BambooHR user.</p>
+  </section>
+
+  <div class="status" id="status"></div>
+
+  <section class="card" id="query" hidden>
+    <h2>2 · Choose who and when</h2>
+    <div class="grid">
+      <div>
+        <label for="supervisor">Team <small>(direct reports of)</small></label>
+        <select id="supervisor"></select>
+      </div>
+      <div>
+        <label for="month">Month</label>
+        <select id="month"></select>
+      </div>
+      <div>
+        <label for="year">Year</label>
+        <input id="year" type="number" min="2000" max="2100">
+      </div>
+      <div>
+        <label for="state">Status</label>
+        <select id="state">
+          <option value="approved">Approved</option>
+          <option value="requested">Pending</option>
+          <option value="denied">Denied</option>
+          <option value="canceled">Canceled</option>
+          <option value="">All</option>
+        </select>
+      </div>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <div>
+        <label for="ids">Or specific employee IDs <small>(comma-separated, overrides the team)</small></label>
+        <input id="ids" placeholder="1418, 1419">
+      </div>
+      <button class="primary" id="run">Get leaves</button>
+    </div>
+  </section>
+
+  <section id="results" hidden>
+    <div class="stats" id="stats"></div>
+    <div class="card">
+      <div class="chips" id="types"></div>
+      <div class="toolbar">
+        <input id="search" type="search" placeholder="Filter by name or type…">
+        <span class="spacer"></span>
+        <button id="copy">Copy CSV</button>
+        <button class="primary" id="download">Download CSV</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-k="employeeId">ID</th><th data-k="name">Name</th><th data-k="start">Start</th>
+              <th data-k="end">End</th><th data-k="type">Type</th><th data-k="amount">Amount</th><th data-k="unit">Unit</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="empty" hidden>No leave found for this selection.</div>
+    </div>
+  </section>
+</main>
+
+<script src="bamboo-common.js"></script>
+<script>
+const CSV_COLUMNS = ['employee_id','name','start','end','type','amount','unit'];
+
+let rows = [];        // flattened leave rows of the last query
+let sortKey = 'name', sortDir = 1;
+
+const buildCsv = list => toCsv(CSV_COLUMNS, list.map(r => [r.employeeId, r.name, r.start, r.end, r.type, r.amount, r.unit]));
+
+/* ---------- query ---------- */
+
+$('run').onclick = async () => {
+  const year = parseInt($('year').value, 10), month = parseInt($('month').value, 10);
+  if (!year) return showStatus('error', 'Enter a year.');
+  const [start, end] = getMonthPeriod(year, month);
+
+  const team = selectedTeam();
+  if (!team.length) return showStatus('error', 'No employees match this selection.');
+
+  $('run').disabled = true;
+  showStatus('info', `Fetching leave for ${MONTHS[month - 1]} ${year}…`);
+  try {
+    const query = { start, end };
+    if ($('state').value) query.status = $('state').value;
+    const requests = await bamboo('time_off/requests', query);
+    const byId = new Map(team.map(e => [Number(e.id), e]));
+    rows = requests.filter(r => byId.has(Number(r.employeeId))).map(r => ({
+      employeeId: Number(r.employeeId),
+      name: byId.get(Number(r.employeeId)).displayName || r.name || r.employeeId,
+      start: r.start, end: r.end,
+      type: r.type?.name ?? '', amount: Number(r.amount?.amount ?? 0), unit: r.amount?.unit ?? '',
+    }));
+    renderStats(team.length);
+    renderTable();
+    $('results').hidden = false;
+    hideStatus();
+  } catch (e) {
+    showStatus('error', e.message);
+  } finally {
+    $('run').disabled = false;
+  }
+};
+
+/* ---------- render ---------- */
+
+function renderStats(teamSize) {
+  const people = new Set(rows.map(r => r.employeeId)).size;
+  const sum = unit => rows.filter(r => r.unit === unit).reduce((s, r) => s + r.amount, 0);
+  const tile = (value, label) => `<div class="stat"><b>${value}</b><span>${label}</span></div>`;
+  $('stats').innerHTML = tile(`${people} / ${teamSize}`, 'people with leave') + tile(rows.length, 'requests')
+    + tile(fmt(sum('days')), 'days') + (sum('hours') ? tile(fmt(sum('hours')), 'hours') : '');
+
+  const byType = {};
+  rows.forEach(r => { byType[r.type] = byType[r.type] || {}; byType[r.type][r.unit] = (byType[r.type][r.unit] || 0) + r.amount; });
+  $('types').replaceChildren(...Object.entries(byType).sort().map(([type, units]) => {
+    const chip = document.createElement('span');
+    chip.className = 'chip';
+    chip.textContent = type;
+    const total = document.createElement('b');
+    total.textContent = Object.entries(units).map(([unit, n]) => `${fmt(n)} ${unit}`).join(' + ');
+    chip.append(total);
+    return chip;
+  }));
+}
+
+function visibleRows() {
+  const q = $('search').value.trim().toLowerCase();
+  const list = q ? rows.filter(r => `${r.name} ${r.type} ${r.employeeId}`.toLowerCase().includes(q)) : rows.slice();
+  return list.sort((a, b) => {
+    const x = a[sortKey], y = b[sortKey];
+    const c = typeof x === 'number' ? x - y : String(x).localeCompare(String(y));
+    return (c || a.start.localeCompare(b.start)) * sortDir;
+  });
+}
+
+function renderTable() {
+  const list = visibleRows();
+  $('rows').replaceChildren(...list.map(r => {
+    const tr = document.createElement('tr');
+    [r.employeeId, r.name, r.start, r.end, r.type, r.amount, r.unit].forEach((v, i) => {
+      const td = document.createElement('td');
+      td.textContent = v;
+      if (i === 5) td.className = 'num';
+      tr.append(td);
+    });
+    return tr;
+  }));
+  $('empty').hidden = list.length > 0;
+}
+
+document.querySelectorAll('th').forEach(th => th.onclick = () => {
+  sortDir = sortKey === th.dataset.k ? -sortDir : 1;
+  sortKey = th.dataset.k;
+  renderTable();
+});
+$('search').oninput = renderTable;
+
+/* ---------- export ---------- */
+
+$('download').onclick = () => downloadCsv(`leaves-${periodSuffix()}.csv`, buildCsv(visibleRows()));
+$('copy').onclick = () => copyCsv($('copy'), buildCsv(visibleRows()));
+
+setupConnectForm();
+</script>
+</body>
+</html>
