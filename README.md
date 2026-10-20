@@ -2,30 +2,33 @@
 
 Small browser tools on top of the [BambooHR API](https://documentation.bamboohr.com/docs/getting-started):
 
-- **Team leaves** (`bamboo-leaves.html`): pick a manager and a month, see everyone's time off, export it as CSV.
-- **On-call payroll** (`bamboo-oncall.html`): "OnCall Period" days and "On Call Intervention" hours per person,
+- **Team leaves** (`/leaves`): pick a manager and a month, see everyone's time off, export it as CSV.
+- **On-call payroll** (`/oncall`): "OnCall Period" days and "On Call Intervention" hours per person,
   split into weekdays and weekends/holidays, with a summary CSV and a daily details CSV.
 
 ## Run
 
 ```bash
-php -S localhost:8000
+php -S localhost:8000 -t public public/index.php
 ```
 
 Open http://localhost:8000, enter the company domain (`<domain>.bamboohr.com`) and your personal BambooHR API key
 (BambooHR → your profile → API Keys). You see the same employees and fields as your BambooHR user.
 
-To share it, host the folder on any PHP server.
+To share it, host it on any PHP server with `public/` as the document root, and send every request that is not
+an existing file to `public/index.php` (`public/.htaccess` does this on Apache; on nginx use
+`try_files $uri /index.php?$query_string;`). Nothing outside `public/` is reachable from the web.
 
 ## How it works
 
 | File | Role |
 |---|---|
-| `index.php` | Launcher listing the tools |
-| `bamboo-leaves.html`, `bamboo-oncall.html` | The tools (plain HTML/JS, no build step) |
-| `bamboo-common.js`, `bamboo.css` | Shared helpers and styles |
-| `bamboo-proxy.php` | Same-origin proxy: BambooHR sends no CORS headers, so the browser can't call it directly |
-| `holidays.json` | Public holidays per BambooHR office (location) |
+| `public/index.php` | Router: `/` launcher, `/leaves`, `/oncall`, `/proxy`, `/holidays` |
+| `public/asset/` | Shared JS helpers and styles |
+| `src/pages/home.php` | Launcher listing the tools |
+| `src/pages/leaves.html`, `src/pages/oncall.html` | The tools (plain HTML/JS, no build step) |
+| `src/proxy.php` | Same-origin proxy (`/proxy`): BambooHR sends no CORS headers, so the browser can't call it directly |
+| `holidays.json` | Public holidays per BambooHR office (location), served at `/holidays` |
 | `generate_holidays.php` | Fills `holidays.json` from [Nager.Date](https://date.nager.at) |
 | `src/BambooHrClient.php` | The same API calls as a PHP class, for scripts |
 
@@ -52,7 +55,7 @@ An employee whose location is not listed gets weekends only, and the page shows 
 
 - Only approved requests count, and only the days inside the selected month (BambooHR gives the amount per day).
 - Weekend = Saturday and Sunday, for every office. A holiday at the employee's office counts as weekend/holiday.
-- Type names are matched ignoring case, spaces and dashes; change `TYPES` in `bamboo-oncall.html` if they are renamed.
+- Type names are matched ignoring case, spaces and dashes; change `TYPES` in `src/pages/oncall.html` if they are renamed.
 
 ## PHP client
 

@@ -32,7 +32,7 @@ const hideStatus = () => { $('status').className = 'status'; };
 
 async function bamboo(path, query = {}) {
   const qs = new URLSearchParams({ d: $('domain').value.trim(), p: path, ...query });
-  const res = await fetch('bamboo-proxy.php?' + qs, { headers: { 'X-Bamboo-Key': $('key').value.trim() } });
+  const res = await fetch('proxy?' + qs, { headers: { 'X-Bamboo-Key': $('key').value.trim() } });
   const text = await res.text();
   let data = null;
   try { data = JSON.parse(text); } catch (e) { /* not JSON */ }
@@ -41,7 +41,7 @@ async function bamboo(path, query = {}) {
       : res.status === 403 ? 'Access denied (wrong key, or the feature is disabled for your user).' : '';
     throw new Error(`BambooHR error ${res.status}. ${data?.error || ''} ${hint}`.trim());
   }
-  if (data === null) throw new Error('Unexpected response from the proxy. Is bamboo-proxy.php served by PHP?');
+  if (data === null) throw new Error('Unexpected response from the proxy. Is the site served through public/index.php?');
   return data;
 }
 

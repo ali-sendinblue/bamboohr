@@ -9,6 +9,11 @@
 // - source "manual": never touched by this script; edit the dates by hand (e.g. India, not covered by Nager.Date).
 // To add an office, add an entry with its country code and source, then run this script.
 
+if (PHP_SAPI !== 'cli') {
+    http_response_code(403);
+    exit("This script can only be run from the command line.\n");
+}
+
 const FILE = __DIR__ . '/holidays.json';
 
 $years = array_map('intval', array_slice($argv, 1)) ?: [(int)date('Y')];
