@@ -14,7 +14,7 @@ const ALLOWED_PATHS = [
 header('Content-Type: application/json');
 header('Cache-Control: no-store');
 
-function fail(int $code, string $message): never
+function fail(int $code, string $message): void
 {
     http_response_code($code);
     echo json_encode(['error' => $message]);
