@@ -6,7 +6,8 @@ use GuzzleHttp\Client;
 
 class BambooHrClient
 {
-    private Client $http;
+    /** @var Client */
+    private $http;
 
     function __construct(string $companyDomain, string $apiKey, ?Client $http = null)
     {
@@ -35,7 +36,9 @@ class BambooHrClient
     {
         return array_values(array_filter(
             $this->getDirectory(),
-            fn(array $e) => isset($e['supervisor']) && $this->normalizeName($e['supervisor']) === $this->normalizeName($supervisorName)
+            function (array $e) use ($supervisorName) {
+                return isset($e['supervisor']) && $this->normalizeName($e['supervisor']) === $this->normalizeName($supervisorName);
+            }
         ));
     }
 
@@ -54,7 +57,9 @@ class BambooHrClient
 
         if ($employeeIds !== null) {
             $ids = array_map('intval', $employeeIds);
-            $requests = array_values(array_filter($requests, fn(array $r) => in_array((int)$r['employeeId'], $ids, true)));
+            $requests = array_values(array_filter($requests, function (array $r) use ($ids) {
+                return in_array((int)$r['employeeId'], $ids, true);
+            }));
         }
         return $requests;
     }
@@ -79,7 +84,9 @@ class BambooHrClient
     function getTeamLeaves(string $supervisorName, string $start, string $end): array
     {
         $team = $this->getTeamMembers($supervisorName);
-        $ids = array_map(fn($e) => (int)$e['id'], $team);
+        $ids = array_map(function ($e) {
+            return (int)$e['id'];
+        }, $team);
         $requests = $ids ? $this->getTimeOffRequests($start, $end, 'approved', $ids) : [];
 
         $result = [];
@@ -106,7 +113,11 @@ class BambooHrClient
     private function get(string $path, array $query = []): array
     {
         $response = $this->http->get($path, ['query' => $query]);
-        return json_decode((string)$response->getBody(), true, 512, JSON_THROW_ON_ERROR);
+        $data = json_decode((string)$response->getBody(), true);
+        if (!is_array($data)) {
+            throw new \RuntimeException("Invalid JSON from BambooHR ($path): " . json_last_error_msg());
+        }
+        return $data;
     }
 
     /**
@@ -114,7 +125,7 @@ class BambooHrClient
      */
     private function normalizeName(string $name): string
     {
-        if (str_contains($name, ',')) {
+        if (strpos($name, ',') !== false) {
             [$last, $first] = array_map('trim', explode(',', $name, 2));
             $name = "$first $last";
         }

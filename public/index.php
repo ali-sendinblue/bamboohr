@@ -14,16 +14,24 @@ if (PHP_SAPI === 'cli-server' && $path !== '/' && is_file(__DIR__ . $path)) {
 
 // Strip the base path when the app is hosted in a sub-folder
 $base = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'])), '/');
-if ($base !== '' && str_starts_with($path, $base)) {
+if ($base !== '' && strpos($path, $base) === 0) {
     $path = substr($path, strlen($base));
 }
 $path = '/' . trim($path, '/');
 
 $routes = [
-    '/' => fn() => require ROOT . '/src/pages/home.php',
-    '/leaves' => fn() => readfile(ROOT . '/src/pages/leaves.html'),
-    '/oncall' => fn() => readfile(ROOT . '/src/pages/oncall.html'),
-    '/proxy' => fn() => require ROOT . '/src/proxy.php',
+    '/' => function () {
+        require ROOT . '/src/pages/home.php';
+    },
+    '/leaves' => function () {
+        readfile(ROOT . '/src/pages/leaves.html');
+    },
+    '/oncall' => function () {
+        readfile(ROOT . '/src/pages/oncall.html');
+    },
+    '/proxy' => function () {
+        require ROOT . '/src/proxy.php';
+    },
     '/holidays' => function () {
         header('Content-Type: application/json');
         header('Cache-Control: no-cache');

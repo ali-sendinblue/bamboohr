@@ -16,8 +16,17 @@ if (PHP_SAPI !== 'cli') {
 
 const FILE = __DIR__ . '/holidays.json';
 
+function decodeJson(string $json): array
+{
+    $data = json_decode($json, true);
+    if (!is_array($data)) {
+        throw new RuntimeException('Invalid JSON: ' . json_last_error_msg());
+    }
+    return $data;
+}
+
 $years = array_map('intval', array_slice($argv, 1)) ?: [(int)date('Y')];
-$config = json_decode(file_get_contents(FILE), true, 512, JSON_THROW_ON_ERROR);
+$config = decodeJson(file_get_contents(FILE));
 
 $cache = [];
 foreach ($config['offices'] as $office => &$entry) {
@@ -27,20 +36,23 @@ foreach ($config['offices'] as $office => &$entry) {
     }
     foreach ($years as $year) {
         $key = "{$entry['country']}-$year";
-        $cache[$key] ??= json_decode(
-            file_get_contents("https://date.nager.at/api/v3/PublicHolidays/$year/{$entry['country']}"),
-            true, 512, JSON_THROW_ON_ERROR
-        );
+        if (!isset($cache[$key])) {
+            $cache[$key] = decodeJson(file_get_contents("https://date.nager.at/api/v3/PublicHolidays/$year/{$entry['country']}"));
+        }
 
         // Drop this year's dates, then add the nationwide ones (regional holidays are ignored)
-        $entry['holidays'] = array_filter($entry['holidays'] ?? [], fn($date) => !str_starts_with($date, "$year-"), ARRAY_FILTER_USE_KEY);
+        $entry['holidays'] = array_filter($entry['holidays'] ?? [], function ($date) use ($year) {
+            return strpos($date, "$year-") !== 0;
+        }, ARRAY_FILTER_USE_KEY);
         foreach ($cache[$key] as $holiday) {
             if ($holiday['global']) {
                 $entry['holidays'][$holiday['date']] = $holiday['name'];
             }
         }
         ksort($entry['holidays']);
-        echo "$office ({$entry['country']}) $year: " . count(array_filter(array_keys($entry['holidays']), fn($d) => str_starts_with($d, "$year-"))) . " holidays\n";
+        echo "$office ({$entry['country']}) $year: " . count(array_filter(array_keys($entry['holidays']), function ($d) use ($year) {
+            return strpos($d, "$year-") === 0;
+        })) . " holidays\n";
     }
 }
 unset($entry);
